@@ -1,5 +1,5 @@
 import db from "../database/db.js";
-import { queueMessage } from "./messageQueue.js";
+import { queueMessage } from "../services/messageQueue.js";
 import { 
     getUserInventory, 
     hasActiveEffect, 
