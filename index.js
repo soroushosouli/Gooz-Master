@@ -9,6 +9,8 @@ import { goozCommand } from "./commands/gooz.js";
 import { statsCommand } from "./commands/stats.js";
 import { topCommand } from "./commands/top.js";
 import { helpCommand } from "./commands/help.js";
+import { shopCommand, itemsCommand, sniperCommand, handleCallbackQuery } from "./commands/shop.js";
+import { activateMaskCommand, activatePepperCommand } from "./commands/activate.js";
 
 initializeDatabase();
 
@@ -25,6 +27,14 @@ bot.command("gooz", goozCommand);
 bot.command("stats", statsCommand);
 bot.command("top", topCommand);
 bot.command("help", helpCommand);
+bot.command("shop", shopCommand);
+bot.command("items", itemsCommand);
+bot.command("sniper", sniperCommand);
+bot.command("mask", activateMaskCommand);
+bot.command("pepper", activatePepperCommand);
+
+// Callback query handler for inline keyboards
+bot.on("callback_query", handleCallbackQuery);
 
 // Start command
 bot.start((ctx) => {
@@ -36,6 +46,11 @@ bot.start((ctx) => {
         "💨 /gooz - یه گوز بزن!\n" +
         "📊 /stats - آمار خودت رو ببین\n" +
         "🏆 /top - رتبه‌بندی گروه رو ببین\n" +
+        "🛒 /shop - فروشگاه آیتم‌ها\n" +
+        "🎒 /items - آیتم‌های خریداری شده\n" +
+        "🔫 /sniper - استفاده از اسنایپر (نیاز به خرید)\n" +
+        "🥽 /mask - فعال کردن ماسک شیمیایی (نیاز به خرید)\n" +
+        "🌶️ /pepper - فعال کردن فلفل (نیاز به خرید)\n" +
         "📚 /help - راهنما",
         { parse_mode: "HTML" }
     );

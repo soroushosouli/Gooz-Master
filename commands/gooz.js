@@ -4,6 +4,7 @@ import { getGroupMembers, selectVictims } from "../services/victims.js";
 import { canGooz, setCooldown } from "../services/cooldown.js";
 import { formatGooz } from "../utils/format.js";
 import { queueMessage } from "../services/messageQueue.js";
+import { hasChemicalMaskActive, getGoozCooldownModifier, isSniperRestricted, hasActiveEffect } from "../services/shop.js";
 
 // Prepared statements cache for better performance
 const statements = {
@@ -48,17 +49,55 @@ export async function goozCommand(ctx) {
         return queueMessage(ctx, "⏳ هنوز اطلاعات گروه ثبت نشده.");
     }
 
-    const cooldown = canGooz(userId, groupId);
+    // Check if user is restricted by sniper
+    const sniperRestriction = isSniperRestricted(userId);
+    if (sniperRestriction.restricted) {
+        return queueMessage(ctx, `🔫 شما توسط اسنایپر هدف قرار گرفته‌اید!\n⏳ ${sniperRestriction.remainingHours} ساعت و ${sniperRestriction.remainingMinutes} دقیقه دیگر نمی‌توانید گوز بزنید.`);
+    }
+
+    // Get cooldown based on Chemical Mask status
+    const cooldownMs = getGoozCooldownModifier(userId);
+    const cooldown = canGooz(userId, groupId, cooldownMs);
 
     if (!cooldown.allowed) {
         const minutes = Math.ceil(cooldown.remaining / 60000);
         return queueMessage(ctx, `⏳ هنوز گوزت اماده نیست!\n${minutes} دقیقه دیگه دوباره امتحان کن.`);
     }
 
-    const gooz = getRandomGooz();
+    // Get random gooz with Pepper effect consideration
+    const gooz = getRandomGooz(userId);
+    
+    // Check if Chemical Mask is active - Nuclear Gooz can still affect others
+    const maskEffect = hasChemicalMaskActive(userId);
+    
     const members = getGroupMembers(ctx.chat.id, ctx.from.id);
     const victimAmount = getVictimAmount(gooz.power);
-    const victims = selectVictims(members, victimAmount);
+    
+    // Filter victims based on Chemical Mask protection
+    let victims = [];
+    if (maskEffect.active && gooz.name !== "💥 گوز هسته‌ای") {
+        // Chemical Mask is active and this is NOT a Nuclear Gooz
+        // Filter out users who have active Chemical Mask (except Nuclear Gooz)
+        const protectedUsers = new Set();
+        
+        for (const member of members) {
+            const memberDbId = statements.getUserByTelegramId.get(String(member.telegram_id))?.id;
+            if (memberDbId) {
+                const memberMask = hasChemicalMaskActive(memberDbId);
+                if (memberMask.active) {
+                    protectedUsers.add(member.telegram_id);
+                }
+            }
+        }
+        
+        // Select victims excluding protected users
+        const unprotectedMembers = members.filter(m => !protectedUsers.has(String(m.telegram_id)));
+        victims = selectVictims(unprotectedMembers, victimAmount);
+    } else {
+        // Normal victim selection (no Chemical Mask or Nuclear Gooz)
+        victims = selectVictims(members, victimAmount);
+    }
+    
     const points = victims.length;
 
     setCooldown(userId, groupId);
