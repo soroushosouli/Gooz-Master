@@ -6,11 +6,9 @@ const statements = {
     setCooldown: null
 };
 
-const COOLDOWN_TIME = 5 * 60 * 1000; // 5 minutes
-
 function initStatements() {
     if (statements.getCooldown) return;
-    
+
     statements.getCooldown = db.prepare(`SELECT last_gooz FROM cooldowns WHERE user_id = ? AND group_id = ?`);
     statements.setCooldown = db.prepare(`
         INSERT INTO cooldowns (user_id, group_id, last_gooz)
@@ -19,7 +17,7 @@ function initStatements() {
     `);
 }
 
-export function canGooz(userId, groupId) {
+export function canGooz(userId, groupId, customCooldownMs = null) {
     initStatements();
 
     const result = statements.getCooldown.get(userId, groupId);
@@ -28,8 +26,9 @@ export function canGooz(userId, groupId) {
         return { allowed: true, remaining: 0 };
     }
 
+    const cooldownTime = customCooldownMs !== null ? customCooldownMs : 5 * 60 * 1000; // Default 5 minutes
     const last = new Date(result.last_gooz).getTime();
-    const remaining = COOLDOWN_TIME - (Date.now() - last);
+    const remaining = cooldownTime - (Date.now() - last);
 
     if (remaining <= 0) {
         return { allowed: true, remaining: 0 };
@@ -40,6 +39,6 @@ export function canGooz(userId, groupId) {
 
 export function setCooldown(userId, groupId) {
     initStatements();
-    
+
     statements.setCooldown.run(userId, groupId, new Date().toISOString());
 }
